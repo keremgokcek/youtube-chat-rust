@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::thread::sleep;
 use youtube_chat::client::Client;
+use youtube_chat::cookie::Cookie;
 use youtube_chat::internal::Action;
 use youtube_chat::internal::banner::BannerItem;
 use youtube_chat::internal::common::{HeaderSubtext, Run};
@@ -9,7 +10,7 @@ use youtube_chat::internal::ticker::TickerItem;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = Client::new();
+    let mut client = Client::new_with_cookie(Cookie::from_file("cookies.firefox-private.txt"));
     client.get_options_from_live_page().await.unwrap();
     loop {
         let resp = client.fetch_chat().await?;
