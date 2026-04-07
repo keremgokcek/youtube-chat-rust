@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 use std::thread::sleep;
 use youtube_chat::client::Client;
-use youtube_chat::types::{Action, HeaderSubtext, Item, Run};
+use youtube_chat::internal::Action;
+use youtube_chat::internal::banner::BannerItem;
+use youtube_chat::internal::common::{HeaderSubtext, Run};
+use youtube_chat::internal::message::MessageItem;
+use youtube_chat::internal::ticker::TickerItem;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -9,11 +13,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     client.get_options_from_live_page().await.unwrap();
     loop {
         let resp = client.fetch_chat().await?;
-        if let Some(actions) = &resp.continuation_contents.live_chat_continuation.actions {
+        if let Some(actions) = &resp.live_chat_continuation.actions {
             for action_wrapper in actions {
                 match &action_wrapper.action {
                     Action::AddChatItem { item } => match item {
-                        Item::TextMessage {
+                        MessageItem::TextMessage {
                             message,
                             author_name,
                             author_photo: _,
@@ -54,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     .join("")
                             )
                         }
-                        Item::MembershipItem {
+                        MessageItem::MembershipItem {
                             author_badges: _,
                             author_external_channel_id: _,
                             author_name,
@@ -100,7 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 )
                             }
                         },
-                        Item::PaidMessage {
+                        MessageItem::PaidMessage {
                             author_badges: _,
                             author_external_channel_id: _,
                             author_name,
@@ -136,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 println!("{} [{}]", author_name.simple_text, purchase_amount_text.simple_text,)
                             }
                         },
-                        Item::SponsorshipsGiftPurchase {
+                        MessageItem::SponsorshipsGiftPurchase {
                             author_external_channel_id: _,
                             header,
                             id: _,
@@ -158,7 +162,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     .join("")
                             );
                         }
-                        Item::SponsorshipsGiftRedemption {
+                        MessageItem::SponsorshipsGiftRedemption {
                             author_badges: _,
                             author_external_channel_id: _,
                             author_name,
@@ -181,41 +185,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     .join("")
                             );
                         }
-                        Item::BannerChatSummary { chat_summary, icon: _ } => println!(
-                            "{}",
-                            chat_summary
-                                .runs
-                                .iter()
-                                .map(|run| match run {
-                                    Run::Text(text) => match &text.navigation_endpoint {
-                                        Some(n) => {
-                                            if n.url_endpoint.url.starts_with("https://www.youtube.com/redirect") {
-                                                url::Url::parse(&n.url_endpoint.url)
-                                                    .unwrap()
-                                                    .query_pairs()
-                                                    .into_owned()
-                                                    .collect::<HashMap<_, _>>()
-                                                    .get("q")
-                                                    .unwrap()
-                                                    .clone()
-                                            } else {
-                                                n.url_endpoint.url.clone()
-                                            }
-                                        }
-                                        None => {
-                                            text.text.clone()
-                                        }
-                                    },
-                                    Run::Emoji { emoji } => emoji.emoji_id.clone(),
-                                })
-                                .collect::<Vec<String>>()
-                                .join("")
-                        ),
-                        Item::ViewerEngagementMessage {} => {}
-                        Item::Unknown(unknown) => {
-                            println!("{unknown:#?}")
-                        }
-                        _ => unreachable!(),
+                        MessageItem::ViewerEngagementMessage {} => {}
+                        MessageItem::Unknown(unknown) => println!("{unknown:#?}"),
                     },
                     Action::ReplaceChatItem {
                         target_item_id: _,
@@ -223,20 +194,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } => println!("Message accepted"),
                     Action::RemoveChatItemByAuthor { external_channel_id: _ } => println!("Someone is banned or timed out."),
                     Action::RemoveChatItem { target_item_id: _ } => println!("Message deleted"),
-                    Action::AddBannerToLiveChat { banner_renderer } => match banner_renderer.live_chat_banner_renderer.contents {
-                        Item::TextMessage {
-                            message: _,
-                            author_name: _,
-                            author_photo: _,
-                            id: _,
-                            timestamp_usec: _,
-                            author_badges: _,
-                            author_external_channel_id: _,
-                        } => println!("Message is pinned"),
-                        Item::BannerChatSummary { chat_summary: _, icon: _ } => println!("=== CHAT SUMMARY ==="),
-                        _ => {}
+                    Action::AddBannerToLiveChat { banner_renderer } => match &banner_renderer.live_chat_banner_renderer.contents {
+                        BannerItem::MessageItem(_) => println!("Message is pinned"),
+                        BannerItem::BannerChatSummary { chat_summary: _, icon: _ } => println!("=== CHAT SUMMARY ==="),
                     },
-                    Action::AddLiveChatTickerItem { item: _, duration_sec } => println!("Add ticker for {duration_sec} seconds"),
+                    Action::AddLiveChatTickerItem { item, duration_sec } => match item {
+                        TickerItem::Unknown(u) => println!("Unknown ticker item: {u:#?}"),
+                        _ => println!("Add ticker for {duration_sec} seconds"),
+                    },
                     Action::ShowLiveChatActionPanel { panel_to_show: _ } => println!("Poll added"),
                     Action::UpdateLiveChatPoll { poll_to_update: _ } => println!("Poll updated"),
                     Action::Unknown(unknown) => println!("Unknown action: {unknown:#?}"),

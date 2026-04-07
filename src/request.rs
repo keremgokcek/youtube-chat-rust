@@ -1,7 +1,5 @@
-use crate::{
-    client::Client,
-    types::{Continuation, GetChatResponse},
-};
+use crate::client::Client;
+use crate::internal::{Continuation, ContinuationContents, GetChatResponse};
 use regex::Regex;
 use serde::Serialize;
 use std::fs::write;
@@ -26,7 +24,7 @@ impl Client {
         let body = self.session.get(LIVE_URL).send().await?.text().await?;
 
         let video_id_regex = Regex::new(r#"is_popout=1\\u0026v=([A-Za-z0-9_-]{11})"#).unwrap();
-        let channel_id_regex = Regex::new(r#""channelId":"([A-Za-z0-9_]{24})""#).unwrap();
+        let channel_id_regex = Regex::new(r#""channelId":"([A-Za-z0-9_-]{24})""#).unwrap();
         let replay_regex = Regex::new(r#"['"]isReplay['"]:\s*(true)"#).unwrap();
         let api_key_regex = Regex::new(r#"['"]INNERTUBE_API_KEY['"]:\s*['"](.+?)['"]"#).unwrap();
         let client_version_regex = Regex::new(r#"['"]clientVersion['"]:\s*['"]([\d.]+?)['"]"#).unwrap();
@@ -60,7 +58,7 @@ impl Client {
         Ok(())
     }
 
-    pub async fn fetch_chat(&mut self) -> Result<GetChatResponse, Box<dyn std::error::Error>> {
+    pub async fn fetch_chat(&mut self) -> Result<ContinuationContents, Box<dyn std::error::Error>> {
         let page_data = self.live_page_data.as_ref().expect("PageData doesn't exist, run get_options_from_live_page first");
         let url = format!("https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key={}", page_data.api_key);
         let body = LiveChatBody {
@@ -88,13 +86,21 @@ impl Client {
             }
         };
 
-        let continuation = match &json.continuation_contents.live_chat_continuation.continuations.first().unwrap() {
+        let continuation_contents = match json.continuation_contents {
+            Some(c) => c,
+            None => {
+                dump_to_file(&text);
+                panic!("Live stream has ended");
+            }
+        };
+
+        let continuation = match &continuation_contents.live_chat_continuation.continuations.first().unwrap() {
             Continuation::Invalidation { continuation } => continuation.clone(),
             Continuation::Timed { continuation } => continuation.clone(),
         };
         self.live_page_data.as_mut().map(|p| p.continuation = continuation);
 
-        Ok(json)
+        Ok(continuation_contents)
     }
 }
 
