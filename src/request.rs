@@ -1,6 +1,7 @@
 use crate::client::Client;
-use crate::internal::{Continuation, ContinuationContents, GetChatResponse};
+use crate::internal::{ChatContinuation, Continuation, ContinuationContents, GetChatResponse};
 use regex::Regex;
+use reqwest::StatusCode;
 use serde::Serialize;
 use std::fs::write;
 
@@ -10,9 +11,11 @@ static LIVE_URL: &str = "https://www.youtube.com/@TugayAloglu/live";
 pub struct LivePageData {
     pub video_id: String,
     pub channel_id: String,
-    pub api_key: String,
-    pub client_version: String,
-    pub continuation: String,
+    #[cfg(feature = "cookies")]
+    pub(crate) datasync_id: String,
+    pub(crate) api_key: String,
+    pub(crate) client_version: String,
+    pub(crate) continuation: String,
 }
 
 fn dump_to_file(text: &str) {
@@ -25,6 +28,8 @@ impl Client {
 
         let video_id_regex = Regex::new(r#"is_popout=1\\u0026v=([A-Za-z0-9_-]{11})"#).unwrap();
         let channel_id_regex = Regex::new(r#""channelId":"([A-Za-z0-9_-]{24})""#).unwrap();
+        #[cfg(feature = "cookies")]
+        let datasync_id_regex = Regex::new(r#""datasyncId":"([0-9]{21})"#).unwrap();
         let replay_regex = Regex::new(r#"['"]isReplay['"]:\s*(true)"#).unwrap();
         let api_key_regex = Regex::new(r#"['"]INNERTUBE_API_KEY['"]:\s*['"](.+?)['"]"#).unwrap();
         let client_version_regex = Regex::new(r#"['"]clientVersion['"]:\s*['"]([\d.]+?)['"]"#).unwrap();
@@ -38,6 +43,8 @@ impl Client {
             }
         };
         let channel_id = channel_id_regex.captures(&body).and_then(|s| s.get(1)).expect("Live stream was not found").as_str();
+        #[cfg(feature = "cookies")]
+        let datasync_id = datasync_id_regex.captures(&body).and_then(|s| s.get(1)).unwrap().as_str();
 
         if replay_regex.is_match(&body) {
             panic!("{video_id} is finished live stream");
@@ -50,6 +57,8 @@ impl Client {
         self.live_page_data = Some(LivePageData {
             video_id: video_id.to_string(),
             channel_id: channel_id.to_string(),
+            #[cfg(feature = "cookies")]
+            datasync_id: datasync_id.to_string(),
             api_key: api_key.to_string(),
             client_version: client_version.to_string(),
             continuation: continuation.to_string(),
@@ -72,7 +81,39 @@ impl Client {
             continuation: page_data.continuation.clone(),
         };
 
-        let resp = self.session.post(url).json(&body).send().await?;
+        #[cfg(feature = "cookies")]
+        let resp = {
+            use sha1_smol::Sha1;
+            use std::time::{SystemTime, UNIX_EPOCH};
+
+            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
+            let hash = Sha1::from(format!("{} {} {} {}", page_data.datasync_id, timestamp, self.sapisid, "https://www.youtube.com")).hexdigest();
+
+            self.session
+                .post(url)
+                .json(&body)
+                .header("Authorization", format!("SAPISIDHASH {}_{}_u", timestamp, hash))
+                .header("X-Goog-AuthUser", "0")
+                .header("X-Origin", "https://www.youtube.com")
+                .send()
+                .await
+        };
+
+        #[cfg(not(feature = "cookies"))]
+        let resp = self.session.post(url).json(&body).send().await;
+
+        let resp = match resp {
+            Ok(r) if r.status() == StatusCode::OK => r,
+            _ => {
+                return Ok(ContinuationContents {
+                    live_chat_continuation: ChatContinuation {
+                        continuations: Vec::new(),
+                        actions: None,
+                    },
+                });
+            }
+        };
+
         let bytes = resp.bytes().await?;
         // let bytes = std::fs::read("error.json").unwrap();
 
