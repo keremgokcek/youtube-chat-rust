@@ -68,12 +68,12 @@ pub struct Thumbnail {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveChatAuthorBadgeRendererWrapper {
-    live_chat_author_badge_renderer: LiveChatAuthorBadgeRenderer,
+    pub live_chat_author_badge_renderer: LiveChatAuthorBadgeRenderer,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Icon {
-    icon_type: String,
+    pub icon_type: String,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

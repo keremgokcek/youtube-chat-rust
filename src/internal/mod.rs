@@ -7,6 +7,7 @@ pub mod poll;
 pub mod ticker;
 
 use banner::{BannerWrapper, PollWrapper};
+use common::Runs;
 use message::MessageItem;
 use ticker::TickerItem;
 
@@ -55,12 +56,25 @@ pub enum Action {
     RemoveChatItem { target_item_id: String },
     #[serde(rename = "addBannerToLiveChatCommand")]
     AddBannerToLiveChat { banner_renderer: BannerWrapper },
+    #[serde(rename = "removeBannerForLiveChatCommand")]
+    RemoveBannerForLiveChat { target_action_id: String },
     #[serde(rename = "addLiveChatTickerItemAction")]
     AddLiveChatTickerItem { item: TickerItem, duration_sec: String },
     #[serde(rename = "showLiveChatActionPanelAction")]
     ShowLiveChatActionPanel { panel_to_show: ActionPanelWrapper },
+    #[serde(rename = "closeLiveChatActionPanelAction")]
+    CloseLiveChatActionPanel { target_panel_id: String },
     #[serde(rename = "updateLiveChatPollAction")]
     UpdateLiveChatPoll { poll_to_update: PollWrapper },
+    // Moderator Actions
+    #[serde(rename = "markChatItemAsDeletedAction")]
+    MarkChatItemAsDeleted { deleted_state_message: Runs, target_item_id: String },
+    #[serde(rename = "markChatItemsByAuthorAsDeletedAction")]
+    MarkChatItemsByAuthorAsDeleted { deleted_state_message: Runs, external_channel_id: String },
+    #[serde(rename = "liveChatReportModerationStateCommand")]
+    ReportModerationState {},
+    #[serde(rename = "liveChatReportPresenceCommand")]
+    ReportPresence {},
     #[serde(untagged)]
     Unknown(serde_json::Value),
 }
