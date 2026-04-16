@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Poll {
     pub choices: Vec<PollChoice>,
     pub header: PollHeaderWrapper,
+    pub live_chat_poll_id: String,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,11 +39,11 @@ pub struct PollHeader {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionPanelWrapper {
-    live_chat_action_panel_renderer: ActionPanel,
+    pub live_chat_action_panel_renderer: ActionPanel,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionPanel {
-    contents: PollWrapper,
-    id: String,
+    pub contents: PollWrapper,
+    pub id: String,
 }

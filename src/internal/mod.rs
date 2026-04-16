@@ -6,9 +6,10 @@ pub mod message;
 pub mod poll;
 pub mod ticker;
 
-use banner::{BannerWrapper, PollWrapper};
+use banner::BannerWrapper;
 use common::Runs;
 use message::MessageItem;
+use poll::PollWrapper;
 use ticker::TickerItem;
 
 use crate::internal::poll::ActionPanelWrapper;
