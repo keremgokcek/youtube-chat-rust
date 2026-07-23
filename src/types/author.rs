@@ -8,7 +8,12 @@ pub struct Author {
     pub is_owner: bool,
     pub is_moderator: bool,
     pub is_verified: bool,
-    pub have_membership: bool,
+    pub membership: Option<Membership>,
+}
+
+#[derive(Debug)]
+pub struct Membership {
+    icon_url: String,
 }
 
 pub fn convert_to_author(
@@ -24,12 +29,14 @@ pub fn convert_to_author(
     let mut is_owner = false;
     let mut is_moderator = false;
     let mut is_verified = false;
-    let mut have_membership = false;
+    let mut membership = None;
 
     if let Some(badges) = author_badges {
         for badge in badges {
-            if badge.live_chat_author_badge_renderer.custom_thumbnail.is_some() {
-                have_membership = true;
+            if let Some(custom_thumbnail) = &badge.live_chat_author_badge_renderer.custom_thumbnail {
+                membership = Some(Membership {
+                    icon_url: custom_thumbnail.thumbnails.last().unwrap().url.clone(),
+                });
             } else if let Some(icon) = &badge.live_chat_author_badge_renderer.icon {
                 match icon.icon_type.as_str() {
                     "MODERATOR" => is_moderator = true,
@@ -48,6 +55,6 @@ pub fn convert_to_author(
         is_owner,
         is_moderator,
         is_verified,
-        have_membership,
+        membership,
     }
 }
