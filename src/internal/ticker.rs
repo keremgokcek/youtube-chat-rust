@@ -41,6 +41,18 @@ pub enum TickerItem {
         show_item_endpoint: ShowItemWrapper,
         start_background_color: u32,
     },
+    #[serde(rename = "liveChatTickerPaidStickerItemRenderer")]
+    PaidSticker {
+        author_external_channel_id: String,
+        author_photo: Thumbnails,
+        duration_sec: u32,
+        end_background_color: u32,
+        full_duration_sec: u32,
+        id: String,
+        show_item_endpoint: ShowItemWrapper,
+        start_background_color: u32,
+        ticker_thumbnails: Vec<Thumbnails>,
+    },
     #[serde(untagged)]
     Unknown(serde_json::Value),
 }
