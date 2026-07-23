@@ -1,8 +1,9 @@
 use super::message::{Message, MessagePart};
 use super::poll::Poll;
 use crate::internal::{Action, banner::BannerItem};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub enum Event {
     // Normal events
     MessageSent {

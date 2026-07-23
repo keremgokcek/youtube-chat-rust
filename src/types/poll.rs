@@ -1,14 +1,15 @@
 use super::message::MessagePart;
 use crate::internal::poll::PollWrapper;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct Poll {
     pub poll_id: String,
     pub question: Vec<MessagePart>,
     pub choices: Vec<PollChoice>,
     pub total_votes: u32,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct PollChoice {
     pub name: String,
     pub votes: u32,

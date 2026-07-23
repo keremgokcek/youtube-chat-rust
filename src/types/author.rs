@@ -1,6 +1,7 @@
 use crate::internal::common::{LiveChatAuthorBadgeRendererWrapper, SimpleText, Thumbnails};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct Author {
     pub channel_id: String,
     pub picture_url: String,
@@ -11,7 +12,7 @@ pub struct Author {
     pub membership: Option<Membership>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct Membership {
     icon_url: String,
 }

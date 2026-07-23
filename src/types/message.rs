@@ -3,9 +3,10 @@ use crate::internal::{
     common::{HeaderSubtext, Run},
     message::MessageItem,
 };
+use serde::{Deserialize, Serialize};
 use url::Url;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub enum Message {
     TextMessage(TextMessage),
     NewMembership(NewMembership),
@@ -26,14 +27,14 @@ pub enum Message {
     UnbanMessage(UnbanMessage),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub enum MessagePart {
     Text(String),
     Emoji(Emoji),
     Link(String),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub enum Emoji {
     Builtin(String),
     Custom { id: String, url: String, shortcut: String },
@@ -336,7 +337,7 @@ impl From<&Run> for MessagePart {
 
 // Individual types
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct TextMessage {
     pub author: Author,
     pub timestamp: u64,
@@ -344,14 +345,14 @@ pub struct TextMessage {
     pub id: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct Engagement {
     pub id: String,
     /// Automated welcome message or poll result message
     pub contents: Vec<MessagePart>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct NewMembership {
     pub author: Author,
     pub timestamp: u64,
@@ -362,7 +363,7 @@ pub struct NewMembership {
     pub title: Vec<MessagePart>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct MembershipMilestone {
     pub author: Author,
     pub timestamp: u64,
@@ -375,7 +376,7 @@ pub struct MembershipMilestone {
     pub title: Vec<MessagePart>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct SuperChat {
     pub author: Author,
     pub id: String,
@@ -387,7 +388,7 @@ pub struct SuperChat {
     pub background_color: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct SuperSticker {
     pub author: Author,
     pub id: String,
@@ -399,7 +400,7 @@ pub struct SuperSticker {
     pub sticker_url: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct MembershipGift {
     /// Amount of membership gifts
     pub amount: u16,
@@ -410,7 +411,7 @@ pub struct MembershipGift {
     pub timestamp: u64,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct MembershipClaim {
     pub author: Author,
     /// Automated YouTube message (received a gift membership by @mkerem0)
@@ -420,7 +421,7 @@ pub struct MembershipClaim {
 }
 
 /// Non moderator item (used for automod detected messages if they later get approved)
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct Placeholder {
     pub id: String,
     pub timestamp: u64,
@@ -428,7 +429,7 @@ pub struct Placeholder {
 
 // Moderator only types
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct AutoModMessage {
     pub id: String,
     /// Target message that is detected by AutoMod
@@ -437,7 +438,7 @@ pub struct AutoModMessage {
     /// Reason (This message is held for review.)
     pub title: Vec<MessagePart>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct TimeoutMessage {
     pub id: String,
     pub timestamp: u64,
@@ -448,7 +449,7 @@ pub struct TimeoutMessage {
     /// Timeout amount by seconds
     pub timeout_secs: u32,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct BanMessage {
     pub id: String,
     pub timestamp: u64,
@@ -457,7 +458,7 @@ pub struct BanMessage {
     /// Username of the moderator that banned the target
     pub moderator_username: String,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct UnbanMessage {
     pub id: String,
     pub timestamp: u64,
