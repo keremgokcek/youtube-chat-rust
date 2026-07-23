@@ -133,10 +133,10 @@ impl From<&MessageItem> for Message {
                 let id = id.to_string();
                 let timestamp: u64 = timestamp_usec.parse().unwrap();
                 let contents: Option<Vec<_>> = message.as_ref().map(|r| r.runs.iter().map(MessagePart::from).collect());
-                let (currency, amount): (String, f32) = purchase_amount_text
+                let (currency, amount): (String, u32) = purchase_amount_text
                     .simple_text
-                    .split_once('\u{a0}')
-                    .map(|(c, a)| (c.into(), a.parse().unwrap()))
+                    .split_at_checked(purchase_amount_text.simple_text.find(|c: char| c.is_ascii_digit()).unwrap())
+                    .map(|(c, a)| (c.trim_end().into(), convert_string_to_money(a)))
                     .unwrap();
                 let background_color = format!("#{:.2X}", body_background_color & 0xFFFFFF);
 
@@ -167,10 +167,10 @@ impl From<&MessageItem> for Message {
                 let author = convert_to_author(author_external_channel_id, author_photo, author_name, author_badges);
                 let id = id.to_string();
                 let timestamp: u64 = timestamp_usec.parse().unwrap();
-                let (currency, amount): (String, f32) = purchase_amount_text
+                let (currency, amount): (String, u32) = purchase_amount_text
                     .simple_text
-                    .split_once('\u{a0}')
-                    .map(|(c, a)| (c.into(), a.parse().unwrap()))
+                    .split_at_checked(purchase_amount_text.simple_text.find(|c: char| c.is_ascii_digit()).unwrap())
+                    .map(|(c, a)| (c.trim_end().into(), convert_string_to_money(a)))
                     .unwrap();
                 let background_color = format!("#{:.2X}", background_color & 0xFFFFFF);
                 let sticker_url = format!("https:{}", sticker.thumbnails.last().unwrap().url.clone());
@@ -383,7 +383,7 @@ pub struct SuperChat {
     /// Superchat message
     pub contents: Option<Vec<MessagePart>>,
     pub currency: String,
-    pub amount: f32,
+    pub amount: u32,
     pub background_color: String,
 }
 
@@ -393,7 +393,7 @@ pub struct SuperSticker {
     pub id: String,
     pub timestamp: u64,
     pub currency: String,
-    pub amount: f32,
+    pub amount: u32,
     pub background_color: String,
     /// Sticker image URL
     pub sticker_url: String,
@@ -465,4 +465,18 @@ pub struct UnbanMessage {
     pub target_username: String,
     /// Username of the moderator that unbanned the target
     pub moderator_username: String,
+}
+
+// Helper functions
+
+fn convert_string_to_money(amount: &str) -> u32 {
+    let amount = amount.replace(",", "");
+
+    match amount.split_once('.') {
+        Some((full, sub)) => match sub.len() {
+            2 => full.parse::<u32>().unwrap() * 100 + sub.parse::<u32>().unwrap(),
+            _ => unreachable!("Unexpected subunit size ({}) for money: {}", sub.len(), amount),
+        },
+        _ => amount.parse::<u32>().unwrap() * 100,
+    }
 }
