@@ -18,6 +18,7 @@ pub enum Event {
         target_item_id: String,
         replacement_item: Message,
     },
+    /// Message deleted by author or moderator (Not used when user is moderator)
     MessageDeleted {
         target_item_id: String,
     },
@@ -28,6 +29,8 @@ pub enum Event {
     UserRestricted {
         target_channel_id: String,
     },
+    /// Returns when a moderator is active on chat
+    ModeratorActive {},
 
     // Moderator Events
     /// Message deleted by the message author himself
@@ -44,6 +47,8 @@ pub enum Event {
         target_channel_id: String,
         moderator_username: String,
     },
+    /// Reports presence of current user (runs every 60 seconds)
+    ReportPresence {},
 
     // Poll Events
     PollAdded {
@@ -157,6 +162,8 @@ impl From<&Action> for Event {
             Action::CloseLiveChatActionPanel { target_panel_id } => Event::PollEnded {
                 poll_id: target_panel_id.into(),
             },
+            Action::ReportModerationState {} => Event::ModeratorActive {},
+            Action::ReportPresence {} => Event::ReportPresence {},
             _ => panic!("[TODO] Internal to public type matching not supported for this type yet: {value:#?}"),
         }
     }
