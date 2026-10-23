@@ -18,12 +18,12 @@ pub struct Membership {
 }
 
 pub fn convert_to_author(
-    author_external_channel_id: &String,
+    author_external_channel_id: &str,
     author_photo: &Thumbnails,
     author_name: &SimpleText,
     author_badges: &Option<Vec<LiveChatAuthorBadgeRendererWrapper>>,
 ) -> Author {
-    let channel_id = author_external_channel_id.clone();
+    let channel_id = author_external_channel_id.to_owned();
     let picture_url = author_photo.thumbnails.last().unwrap().url.clone();
     let username = author_name.simple_text.clone();
 

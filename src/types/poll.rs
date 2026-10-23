@@ -31,7 +31,7 @@ impl From<&PollWrapper> for Poll {
                 MessagePart::Text(a) => a.split_once(" ")?.0.replace(",", "").parse().ok(),
                 _ => None,
             })
-            .expect(&format!("Malformed poll JSON: {value:#?}"));
+            .unwrap_or_else(|| panic!("Malformed poll JSON: {value:#?}"));
         let choices: Vec<PollChoice> = poll_renderer
             .choices
             .iter()
@@ -39,7 +39,7 @@ impl From<&PollWrapper> for Poll {
                 let name = c
                     .text
                     .runs
-                    .get(0)
+                    .first()
                     .and_then(|r| match MessagePart::from(r) {
                         MessagePart::Text(a) => Some(a),
                         _ => None,

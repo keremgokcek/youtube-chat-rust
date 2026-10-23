@@ -101,7 +101,7 @@ impl From<&Action> for Event {
                         if let MessagePart::Text(username) = moderator.into() {
                             Event::MessageDeletedByModerator {
                                 target_item_id,
-                                moderator_username: username.into(),
+                                moderator_username: username,
                             }
                         } else {
                             unreachable!("Unexpected moderator delete action: {:#?}", deleted_state_message);
@@ -124,7 +124,7 @@ impl From<&Action> for Event {
 
                 Event::MessagesDeletedByModerator {
                     target_channel_id: external_channel_id.into(),
-                    moderator_username: username.into(),
+                    moderator_username: username,
                 }
             }
             Action::AddBannerToLiveChat { banner_renderer } => {

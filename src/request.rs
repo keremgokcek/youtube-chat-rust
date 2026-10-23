@@ -75,7 +75,8 @@ impl Client {
     }
 
     pub(crate) async fn fetch_chat(&mut self) -> Result<ContinuationContents, Error> {
-        let page_data = self.live_page_data.as_ref().expect("PageData doesn't exist, run get_options_from_live_page first");
+        let page_data = self.live_page_data.as_mut().expect("PageData doesn't exist, run get_options_from_live_page first");
+
         let url = format!("https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key={}", page_data.api_key);
         let body = LiveChatBody {
             context: ContextBody {
@@ -143,7 +144,7 @@ impl Client {
             Continuation::Invalidation { continuation } => continuation.clone(),
             Continuation::Timed { continuation } => continuation.clone(),
         };
-        self.live_page_data.as_mut().map(|p| p.continuation = continuation);
+        page_data.continuation = continuation;
 
         Ok(continuation_contents)
     }
