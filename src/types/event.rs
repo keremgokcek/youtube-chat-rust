@@ -1,5 +1,6 @@
 use super::message::{Message, MessagePart};
 use super::poll::Poll;
+use crate::internal::common::Run;
 use crate::internal::{Action, banner::BannerItem};
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +11,7 @@ pub enum Event {
         item: Message,
     },
     MessagePinned {
+        action_id: String,
         item: Message,
     },
     MessageApproved {
@@ -18,6 +20,9 @@ pub enum Event {
     },
     MessageDeleted {
         target_item_id: String,
+    },
+    BannerRemoved {
+        target_action_id: String,
     },
     /// Ban or timeout
     UserRestricted {
@@ -49,6 +54,17 @@ pub enum Event {
     },
     PollEnded {
         poll_id: String,
+    },
+
+    // YouTube Features
+    ChatSummary {
+        action_id: String,
+        summary: String,
+    },
+    Redirect {
+        action_id: String,
+        profile_picture_url: String,
+        username: String,
     },
 }
 
@@ -106,9 +122,33 @@ impl From<&Action> for Event {
                     moderator_username: username.into(),
                 }
             }
-            Action::AddBannerToLiveChat { banner_renderer } => match &banner_renderer.live_chat_banner_renderer.contents {
-                BannerItem::MessageItem(item) => Event::MessagePinned { item: item.into() },
-                _ => todo!(),
+            Action::AddBannerToLiveChat { banner_renderer } => {
+                let action_id = banner_renderer.live_chat_banner_renderer.action_id.clone();
+                match &banner_renderer.live_chat_banner_renderer.contents {
+                    BannerItem::MessageItem(item) => Event::MessagePinned { action_id, item: item.into() },
+                    BannerItem::BannerChatSummary { chat_summary, icon: _ } => match chat_summary.runs.last().unwrap() {
+                        Run::Text(t) => Event::ChatSummary {
+                            action_id,
+                            summary: t.text.clone(),
+                        },
+                        _ => unreachable!("Unexpected non-text chat summary: {chat_summary:#?}"),
+                    },
+                    BannerItem::Redirect {
+                        author_photo,
+                        redirect_message,
+                    } => Event::Redirect {
+                        action_id,
+                        profile_picture_url: author_photo.thumbnails.last().unwrap().url.clone(),
+                        username: match redirect_message.runs.first() {
+                            Some(Run::Text(t)) => t.text.clone(),
+                            _ => unreachable!("Unexpected redirect message content: {redirect_message:#?}"),
+                        },
+                    },
+                    _ => todo!("Unsupported BannerItem: {:#?}", banner_renderer.live_chat_banner_renderer.contents),
+                }
+            }
+            Action::RemoveBannerForLiveChat { target_action_id } => Event::BannerRemoved {
+                target_action_id: target_action_id.clone(),
             },
             Action::ShowLiveChatActionPanel { panel_to_show } => Event::PollAdded {
                 poll: (&panel_to_show.live_chat_action_panel_renderer.contents).into(),
@@ -117,7 +157,7 @@ impl From<&Action> for Event {
             Action::CloseLiveChatActionPanel { target_panel_id } => Event::PollEnded {
                 poll_id: target_panel_id.into(),
             },
-            _ => panic!("Action not supported yet"),
+            _ => panic!("[TODO] Internal to public type matching not supported for this type yet: {value:#?}"),
         }
     }
 }

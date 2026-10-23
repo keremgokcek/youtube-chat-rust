@@ -21,7 +21,7 @@ pub enum BannerItem {
     #[serde(rename = "liveChatBannerChatSummaryRenderer")]
     BannerChatSummary { chat_summary: Runs, icon: Icon },
     #[serde(rename = "liveChatBannerRedirectRenderer")]
-    Redirect { author_photo: Thumbnails, banner_message: Runs },
+    Redirect { author_photo: Thumbnails, redirect_message: Runs },
     #[serde(rename = "liveChatCallForQuestionsRenderer")]
     CallForQuestions {
         creator_author_name: SimpleText,
