@@ -28,10 +28,6 @@ impl From<reqwest::Error> for Error {
     }
 }
 
-fn dump_to_file(text: &str) {
-    let _ = write("error.json", text);
-}
-
 impl Client {
     pub(crate) async fn get_options_from_live_page(&mut self) -> Result<Option<()>, reqwest::Error> {
         let body = self.session.get(LIVE_URL).send().await?.text().await?;
