@@ -28,7 +28,7 @@ impl From<&PollWrapper> for Poll {
             .runs
             .get(4)
             .and_then(|r| match MessagePart::from(r) {
-                MessagePart::Text(a) => a.split_once(" ")?.0.parse().ok(),
+                MessagePart::Text(a) => a.split_once(" ")?.0.replace(",", "").parse().ok(),
                 _ => None,
             })
             .expect(&format!("Malformed poll JSON: {value:#?}"));
