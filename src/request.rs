@@ -8,9 +8,9 @@ use std::fs::write;
 static LIVE_URL: &str = "https://www.youtube.com/@TugayAloglu/live";
 
 #[derive(Debug)]
-pub struct LivePageData {
-    pub video_id: String,
-    pub channel_id: String,
+pub(crate) struct LivePageData {
+    pub(crate) video_id: String,
+    pub(crate) channel_id: String,
     #[cfg(feature = "cookies")]
     pub(crate) datasync_id: String,
     pub(crate) api_key: String,
@@ -18,13 +18,26 @@ pub struct LivePageData {
     pub(crate) continuation: String,
 }
 
+pub(crate) enum Error {
+    NetworkError(reqwest::Error),
+    StreamEnded,
+}
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::NetworkError(err)
+    }
+}
+
 fn dump_to_file(text: &str) {
     let _ = write("error.json", text);
 }
 
 impl Client {
-    pub async fn get_options_from_live_page(&mut self) -> Result<(), reqwest::Error> {
+    pub(crate) async fn get_options_from_live_page(&mut self) -> Result<Option<()>, reqwest::Error> {
         let body = self.session.get(LIVE_URL).send().await?.text().await?;
+
+        // DEBUG
+        write("last_live_page.html", &body).unwrap();
 
         let video_id_regex = Regex::new(r#"is_popout=1\\u0026v=([A-Za-z0-9_-]{11})"#).unwrap();
         let channel_id_regex = Regex::new(r#""channelId":"([A-Za-z0-9_-]{24})""#).unwrap();
@@ -37,13 +50,11 @@ impl Client {
 
         let video_id = match video_id_regex.captures(&body).and_then(|s| s.get(1)) {
             Some(v) => v.as_str(),
-            None => {
-                let _ = write("error.html", &body);
-                panic!("Live stream was not found")
-            }
+            None => return Ok(None),
         };
         let channel_id = channel_id_regex.captures(&body).and_then(|s| s.get(1)).expect("Live stream was not found").as_str();
         #[cfg(feature = "cookies")]
+        // TODO: If not found, provided cookies are invalid or expired.
         let datasync_id = datasync_id_regex.captures(&body).and_then(|s| s.get(1)).unwrap().as_str();
 
         if replay_regex.is_match(&body) {
@@ -64,10 +75,10 @@ impl Client {
             continuation: continuation.to_string(),
         });
 
-        Ok(())
+        Ok(Some(()))
     }
 
-    pub async fn fetch_chat(&mut self) -> Result<ContinuationContents, Box<dyn std::error::Error>> {
+    pub(crate) async fn fetch_chat(&mut self) -> Result<ContinuationContents, Error> {
         let page_data = self.live_page_data.as_ref().expect("PageData doesn't exist, run get_options_from_live_page first");
         let url = format!("https://www.youtube.com/youtubei/v1/live_chat/get_live_chat?key={}", page_data.api_key);
         let body = LiveChatBody {
@@ -75,7 +86,7 @@ impl Client {
                 client: ClientBody {
                     client_name: "WEB".to_string(),
                     client_version: page_data.client_version.clone(),
-                    hl: "tr".to_string(),
+                    hl: "en".to_string(),
                 },
             },
             continuation: page_data.continuation.clone(),
@@ -115,13 +126,13 @@ impl Client {
         };
 
         let bytes = resp.bytes().await?;
-        // let bytes = std::fs::read("error.json").unwrap();
 
-        let text = String::from_utf8_lossy(&bytes);
+        // DEBUG
+        write("last_live_chat.json", &bytes).unwrap();
+
         let json: GetChatResponse = match serde_json::from_slice(&bytes) {
             Ok(json) => json,
             Err(e) => {
-                dump_to_file(&text);
                 println!("This is the error object: \"{e:#?}\"");
                 todo!()
             }
@@ -129,10 +140,7 @@ impl Client {
 
         let continuation_contents = match json.continuation_contents {
             Some(c) => c,
-            None => {
-                dump_to_file(&text);
-                panic!("Live stream has ended");
-            }
+            None => return Err(Error::StreamEnded),
         };
 
         let continuation = match &continuation_contents.live_chat_continuation.continuations.first().unwrap() {
