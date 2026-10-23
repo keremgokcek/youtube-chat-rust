@@ -3,3 +3,4 @@ pub mod client;
 pub mod cookie;
 pub mod internal;
 pub mod request;
+pub mod types;
