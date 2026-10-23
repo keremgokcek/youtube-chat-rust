@@ -14,7 +14,7 @@ pub struct Author {
 
 #[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct Membership {
-    icon_url: String,
+    pub icon_url: String,
 }
 
 pub fn convert_to_author(
