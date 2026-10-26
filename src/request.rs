@@ -12,7 +12,7 @@ pub(crate) struct LivePageData {
     pub(crate) video_id: String,
     pub(crate) channel_id: String,
     #[cfg(feature = "cookies")]
-    pub(crate) datasync_id: String,
+    pub(crate) datasync_id: Option<String>,
     pub(crate) api_key: String,
     pub(crate) client_version: String,
     pub(crate) continuation: String,
@@ -45,30 +45,34 @@ impl Client {
         let continuation_regex = Regex::new(r#"['"]continuation['"]:\s*['"](.+?)['"]"#).unwrap();
 
         let video_id = match video_id_regex.captures(&body).and_then(|s| s.get(1)) {
-            Some(v) => v.as_str(),
+            Some(v) => v.as_str().to_owned(),
             None => return Ok(None),
         };
-        let channel_id = channel_id_regex.captures(&body).and_then(|s| s.get(1)).expect("Live stream was not found").as_str();
+        let channel_id = channel_id_regex.captures(&body).and_then(|s| s.get(1)).expect("Live stream was not found").as_str().to_owned();
         #[cfg(feature = "cookies")]
         // TODO: If not found, provided cookies are invalid or expired.
-        let datasync_id = datasync_id_regex.captures(&body).and_then(|s| s.get(1)).unwrap().as_str();
+        let datasync_id = if self.sapisid.is_some() {
+            Some(datasync_id_regex.captures(&body).and_then(|s| s.get(1)).unwrap().as_str().to_owned())
+        } else {
+            None
+        };
 
         if replay_regex.is_match(&body) {
             panic!("{video_id} is finished live stream");
         }
 
-        let api_key = api_key_regex.captures(&body).and_then(|s| s.get(1)).expect("API key was not found").as_str();
-        let client_version = client_version_regex.captures(&body).and_then(|s| s.get(1)).expect("Client version was not found").as_str();
-        let continuation = continuation_regex.captures(&body).and_then(|s| s.get(1)).expect("Continuation was not found").as_str();
+        let api_key = api_key_regex.captures(&body).and_then(|s| s.get(1)).expect("API key was not found").as_str().to_owned();
+        let client_version = client_version_regex.captures(&body).and_then(|s| s.get(1)).expect("Client version was not found").as_str().to_owned();
+        let continuation = continuation_regex.captures(&body).and_then(|s| s.get(1)).expect("Continuation was not found").as_str().to_owned();
 
         self.live_page_data = Some(LivePageData {
-            video_id: video_id.to_string(),
-            channel_id: channel_id.to_string(),
+            video_id,
+            channel_id,
             #[cfg(feature = "cookies")]
-            datasync_id: datasync_id.to_string(),
-            api_key: api_key.to_string(),
-            client_version: client_version.to_string(),
-            continuation: continuation.to_string(),
+            datasync_id,
+            api_key,
+            client_version,
+            continuation,
         });
 
         Ok(Some(()))
@@ -89,28 +93,24 @@ impl Client {
             continuation: page_data.continuation.clone(),
         };
 
+        let req = self.session.post(url).json(&body);
+
         #[cfg(feature = "cookies")]
-        let resp = {
+        let req = if let (Some(sapisid), Some(datasync_id)) = (&self.sapisid, &page_data.datasync_id) {
             use sha1_smol::Sha1;
             use std::time::{SystemTime, UNIX_EPOCH};
 
-            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
-            let hash = Sha1::from(format!("{} {} {} {}", page_data.datasync_id, timestamp, self.sapisid, "https://www.youtube.com")).hexdigest();
+            const ORIGIN: &str = "https://www.youtube.com";
 
-            self.session
-                .post(url)
-                .json(&body)
-                .header("Authorization", format!("SAPISIDHASH {}_{}_u", timestamp, hash))
-                .header("X-Goog-AuthUser", "0")
-                .header("X-Origin", "https://www.youtube.com")
-                .send()
-                .await
+            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).expect("Time went backwards").as_secs();
+            let hash = Sha1::from(format!("{} {} {} {}", datasync_id, timestamp, sapisid, ORIGIN)).hexdigest();
+
+            req.header("Authorization", format!("SAPISIDHASH {timestamp}_{hash}_u")).header("X-Goog-AuthUser", "0").header("X-Origin", ORIGIN)
+        } else {
+            req
         };
 
-        #[cfg(not(feature = "cookies"))]
-        let resp = self.session.post(url).json(&body).send().await;
-
-        let resp = match resp {
+        let resp = match req.send().await {
             Ok(r) if r.status() == StatusCode::OK => r,
             _ => {
                 return Ok(ContinuationContents {
