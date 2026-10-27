@@ -5,8 +5,6 @@ use reqwest::StatusCode;
 use serde::Serialize;
 use std::fs::write;
 
-static LIVE_URL: &str = "https://www.youtube.com/@TugayAloglu/live";
-
 #[derive(Debug)]
 pub(crate) struct LivePageData {
     pub(crate) video_id: String,
@@ -30,7 +28,7 @@ impl From<reqwest::Error> for Error {
 
 impl Client {
     pub(crate) async fn get_options_from_live_page(&mut self) -> Result<Option<()>, reqwest::Error> {
-        let body = self.session.get(LIVE_URL).send().await?.text().await?;
+        let body = self.session.get(&self.live_stream_url).send().await?.text().await?;
 
         // DEBUG
         write("last_live_page.html", &body).unwrap();
