@@ -33,7 +33,7 @@ impl Client {
         // DEBUG
         write("last_live_page.html", &body).unwrap();
 
-        let video_id_regex = Regex::new(r#"is_popout=1\\u0026v=([A-Za-z0-9_-]{11})"#).unwrap();
+        let video_id_regex = Regex::new(r#""videoId":"([A-Za-z0-9_-]{11})""#).unwrap();
         let channel_id_regex = Regex::new(r#""channelId":"([A-Za-z0-9_-]{24})""#).unwrap();
         #[cfg(feature = "cookies")]
         let datasync_id_regex = Regex::new(r#""datasyncId":"([0-9]{21})"#).unwrap();
