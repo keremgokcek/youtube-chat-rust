@@ -40,9 +40,10 @@ pub enum Emoji {
     Custom { id: String, url: String, shortcut: String },
 }
 
-impl From<&MessageItem> for Message {
-    fn from(value: &MessageItem) -> Self {
-        match value {
+impl TryFrom<&MessageItem> for Message {
+    type Error = ();
+    fn try_from(value: &MessageItem) -> Result<Self, Self::Error> {
+        Ok(match value {
             MessageItem::TextMessage {
                 message,
                 author_name,
@@ -248,7 +249,7 @@ impl From<&MessageItem> for Message {
                 header_text,
             } => {
                 let id = id.to_string();
-                let auto_mod_item: Message = auto_moderated_item.as_ref().into();
+                let auto_mod_item: Message = auto_moderated_item.as_ref().try_into()?;
                 let timestamp: u64 = timestamp_usec.parse().unwrap();
                 let title: Vec<MessagePart> = header_text.runs.iter().map(MessagePart::from).collect();
 
@@ -293,8 +294,11 @@ impl From<&MessageItem> for Message {
                     _ => panic!("Unexpected ModerationMessage structure"),
                 }
             }
-            MessageItem::Unknown(_) => todo!("Item: {value:#?}"),
-        }
+            MessageItem::Unknown(v) => {
+                eprintln!("[TODO] Unsupported message type: {v:?}");
+                return Err(());
+            }
+        })
     }
 }
 
@@ -304,14 +308,7 @@ impl From<&Run> for MessagePart {
             Run::Text(t) => match &t.navigation_endpoint {
                 Some(n) => {
                     if n.url_endpoint.url.starts_with("https://www.youtube.com/redirect") {
-                        MessagePart::Link(
-                            Url::parse(&n.url_endpoint.url)
-                                .unwrap()
-                                .query_pairs()
-                                .find(|(k, _)| k == "q")
-                                .map(|(_, v)| v.into_owned())
-                                .unwrap(),
-                        )
+                        MessagePart::Link(Url::parse(&n.url_endpoint.url).unwrap().query_pairs().find(|(k, _)| k == "q").map(|(_, v)| v.into_owned()).unwrap())
                     } else {
                         MessagePart::Link(n.url_endpoint.url.clone())
                     }

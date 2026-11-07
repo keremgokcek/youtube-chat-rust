@@ -102,7 +102,8 @@ impl Client {
                 Ok(resp) => {
                     if let Some(actions) = &resp.live_chat_continuation.actions {
                         for action_wrapper in actions {
-                            let event = (&action_wrapper.action).into();
+                            let Ok(event) = (&action_wrapper.action).try_into() else { continue };
+
                             match event {
                                 Event::MessageSent { item } => {
                                     if self.message_cache.contains(&item) {

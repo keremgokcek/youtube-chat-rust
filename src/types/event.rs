@@ -73,16 +73,17 @@ pub enum Event {
     },
 }
 
-impl From<&Action> for Event {
-    fn from(value: &Action) -> Self {
-        match value {
-            Action::AddChatItem { item } => Event::MessageSent { item: item.into() },
+impl TryFrom<&Action> for Event {
+    type Error = ();
+    fn try_from(value: &Action) -> Result<Self, Self::Error> {
+        Ok(match value {
+            Action::AddChatItem { item } => Event::MessageSent { item: item.try_into()? },
             Action::ReplaceChatItem {
                 target_item_id,
                 replacement_item,
             } => Event::MessageApproved {
                 target_item_id: target_item_id.into(),
-                replacement_item: replacement_item.into(),
+                replacement_item: replacement_item.try_into()?,
             },
             Action::RemoveChatItem { target_item_id } => Event::MessageDeleted {
                 target_item_id: target_item_id.into(),
@@ -130,7 +131,10 @@ impl From<&Action> for Event {
             Action::AddBannerToLiveChat { banner_renderer } => {
                 let action_id = banner_renderer.live_chat_banner_renderer.action_id.clone();
                 match &banner_renderer.live_chat_banner_renderer.contents {
-                    BannerItem::MessageItem(item) => Event::MessagePinned { action_id, item: item.into() },
+                    BannerItem::MessageItem(item) => Event::MessagePinned {
+                        action_id,
+                        item: item.try_into()?,
+                    },
                     BannerItem::BannerChatSummary { chat_summary, icon: _ } => match chat_summary.runs.last().unwrap() {
                         Run::Text(t) => Event::ChatSummary {
                             action_id,
@@ -164,7 +168,10 @@ impl From<&Action> for Event {
             },
             Action::ReportModerationState {} => Event::ModeratorActive {},
             Action::ReportPresence {} => Event::ReportPresence {},
-            _ => panic!("[TODO] Internal to public type matching not supported for this type yet: {value:#?}"),
-        }
+            Action::Unknown(v) => {
+                eprintln!("[TODO] Unsupported action type: {v:?}");
+                return Err(());
+            }
+        })
     }
 }
