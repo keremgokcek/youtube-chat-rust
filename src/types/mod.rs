@@ -6,7 +6,7 @@ pub mod poll;
 #[derive(Debug)]
 pub struct StreamDetails {
     pub title: String,
-    pub description: String,
+    pub description: Option<String>,
     pub video_id: String,
     pub channel_id: String,
     #[cfg(feature = "jiff")]

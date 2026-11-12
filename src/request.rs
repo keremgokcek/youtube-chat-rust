@@ -19,7 +19,7 @@ struct Microformat {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PlayerMicroformatRenderer {
-    description: SimpleText,
+    description: Option<SimpleText>,
     external_channel_id: String,
     external_video_id: String,
     #[cfg(feature = "jiff")]
@@ -59,7 +59,7 @@ impl Client {
         // DEBUG
         write("last_live_page.html", &body).unwrap();
 
-        let initial_response_regex = Regex::new(r#"var ytInitialPlayerResponse = (.*);<"#).unwrap();
+        let initial_response_regex = Regex::new(r#"var ytInitialPlayerResponse = (.*});"#).unwrap();
         let data = match initial_response_regex.captures(&body).and_then(|s| s.get(1)).and_then(|s| serde_json::from_str::<InitialResponse>(s.as_str()).ok()) {
             Some(data) => data.microformat.player_microformat_renderer,
             None => return Ok(None),
@@ -67,7 +67,7 @@ impl Client {
 
         let stream_details = StreamDetails {
             title: data.title.simple_text,
-            description: data.description.simple_text,
+            description: data.description.map(|d| d.simple_text),
             video_id: data.external_video_id,
             channel_id: data.external_channel_id,
             #[cfg(feature = "jiff")]
