@@ -1,4 +1,5 @@
 use crate::request::{Error, LivePageData};
+use crate::types::StreamDetails;
 use crate::types::event::Event;
 use crate::types::message::{MembershipClaim, MembershipGift, MembershipMilestone, Message, NewMembership, SuperChat, SuperSticker, TextMessage};
 use crate::types::poll::Poll;
@@ -21,7 +22,7 @@ pub trait EventHandler: Send + Sync {
     async fn on_poll_add(&self, _poll: &Poll) {}
     async fn on_poll_update(&self, _poll: &Poll) {}
     async fn on_poll_remove(&self, _poll: &Poll) {}
-    async fn on_stream_start(&self) {}
+    async fn on_stream_start(&self, _stream_details: StreamDetails) {}
     async fn on_stream_end(&self) {}
 }
 
@@ -96,8 +97,8 @@ impl Client {
     pub async fn start(mut self) {
         loop {
             loop {
-                if self.get_options_from_live_page().await.unwrap().is_some() {
-                    self.handler.on_stream_start().await;
+                if let Some(stream_details) = self.get_options_from_live_page().await.unwrap() {
+                    self.handler.on_stream_start(stream_details).await;
                     break;
                 };
 

@@ -1,14 +1,40 @@
 use crate::client::Client;
+use crate::internal::common::SimpleText;
 use crate::internal::{ChatContinuation, Continuation, ContinuationContents, GetChatResponse};
+use crate::types::StreamDetails;
 use regex::Regex;
 use reqwest::StatusCode;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs::write;
+
+#[derive(Debug, Deserialize)]
+struct InitialResponse {
+    microformat: Microformat,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Microformat {
+    player_microformat_renderer: PlayerMicroformatRenderer,
+}
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PlayerMicroformatRenderer {
+    description: SimpleText,
+    external_channel_id: String,
+    external_video_id: String,
+    #[cfg(feature = "jiff")]
+    live_broadcast_details: LiveBroadcastDetails,
+    title: SimpleText,
+}
+#[cfg(feature = "jiff")]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LiveBroadcastDetails {
+    start_timestamp: String,
+}
 
 #[derive(Debug)]
 pub(crate) struct LivePageData {
-    pub(crate) video_id: String,
-    pub(crate) channel_id: String,
     #[cfg(feature = "cookies")]
     pub(crate) datasync_id: Option<String>,
     pub(crate) api_key: String,
@@ -27,14 +53,27 @@ impl From<reqwest::Error> for Error {
 }
 
 impl Client {
-    pub(crate) async fn get_options_from_live_page(&mut self) -> Result<Option<()>, reqwest::Error> {
+    pub(crate) async fn get_options_from_live_page(&mut self) -> Result<Option<StreamDetails>, reqwest::Error> {
         let body = self.session.get(&self.live_stream_url).send().await?.text().await?;
 
         // DEBUG
         write("last_live_page.html", &body).unwrap();
 
-        let video_id_regex = Regex::new(r#"<link rel="canonical" href="https://www.youtube.com/watch\?v=(.+?)">"#).unwrap();
-        let channel_id_regex = Regex::new(r#""channelId":"([A-Za-z0-9_-]{24})""#).unwrap();
+        let initial_response_regex = Regex::new(r#"var ytInitialPlayerResponse = (.*);<"#).unwrap();
+        let data = match initial_response_regex.captures(&body).and_then(|s| s.get(1)).and_then(|s| serde_json::from_str::<InitialResponse>(s.as_str()).ok()) {
+            Some(data) => data.microformat.player_microformat_renderer,
+            None => return Ok(None),
+        };
+
+        let stream_details = StreamDetails {
+            title: data.title.simple_text,
+            description: data.description.simple_text,
+            video_id: data.external_video_id,
+            channel_id: data.external_channel_id,
+            #[cfg(feature = "jiff")]
+            start_timestamp: data.live_broadcast_details.start_timestamp.parse::<jiff::Timestamp>().unwrap().as_second(),
+        };
+
         #[cfg(feature = "cookies")]
         let datasync_id_regex = Regex::new(r#""datasyncId":"([0-9]{21})"#).unwrap();
         let replay_regex = Regex::new(r#"['"]isReplay['"]:\s*(true)"#).unwrap();
@@ -42,11 +81,6 @@ impl Client {
         let client_version_regex = Regex::new(r#"['"]clientVersion['"]:\s*['"]([\d.]+?)['"]"#).unwrap();
         let continuation_regex = Regex::new(r#"['"]continuation['"]:\s*['"](.+?)['"]"#).unwrap();
 
-        let video_id = match video_id_regex.captures(&body).and_then(|s| s.get(1)) {
-            Some(v) => v.as_str().to_owned(),
-            None => return Ok(None),
-        };
-        let channel_id = channel_id_regex.captures(&body).and_then(|s| s.get(1)).expect("Live stream was not found").as_str().to_owned();
         #[cfg(feature = "cookies")]
         // TODO: If not found, provided cookies are invalid or expired.
         let datasync_id = if self.sapisid.is_some() {
@@ -56,7 +90,7 @@ impl Client {
         };
 
         if replay_regex.is_match(&body) {
-            panic!("{video_id} is finished live stream");
+            panic!("{} is finished live stream", stream_details.video_id);
         }
 
         let api_key = api_key_regex.captures(&body).and_then(|s| s.get(1)).expect("API key was not found").as_str().to_owned();
@@ -64,8 +98,6 @@ impl Client {
         let continuation = continuation_regex.captures(&body).and_then(|s| s.get(1)).expect("Continuation was not found").as_str().to_owned();
 
         self.live_page_data = Some(LivePageData {
-            video_id,
-            channel_id,
             #[cfg(feature = "cookies")]
             datasync_id,
             api_key,
@@ -73,7 +105,7 @@ impl Client {
             continuation,
         });
 
-        Ok(Some(()))
+        Ok(Some(stream_details))
     }
 
     pub(crate) async fn fetch_chat(&mut self) -> Result<ContinuationContents, Error> {
