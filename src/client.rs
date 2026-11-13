@@ -1,7 +1,10 @@
 use crate::request::{Error, LivePageData};
 use crate::types::StreamDetails;
 use crate::types::event::Event;
-use crate::types::message::{MembershipClaim, MembershipGift, MembershipMilestone, Message, NewMembership, SuperChat, SuperSticker, TextMessage};
+use crate::types::message::{
+    BanMessage, MembershipClaim, MembershipGift, MembershipMilestone, Message, NewMembership, SuperChat, SuperSticker, TextMessage, TimeoutMessage,
+    UnbanMessage,
+};
 use crate::types::poll::Poll;
 use async_trait::async_trait;
 use std::collections::HashSet;
@@ -19,9 +22,16 @@ pub trait EventHandler: Send + Sync {
     async fn on_membership_milestone(&self, _membership_milestone: &MembershipMilestone) {}
     async fn on_membership_gift(&self, _membership_gift: &MembershipGift) {}
     async fn on_membership_claim(&self, _membership_claim: &MembershipClaim) {}
+
+    // Moderator events
+    async fn on_user_timeout(&self, _timeout_message: &TimeoutMessage) {}
+    async fn on_user_ban(&self, _ban_message: &BanMessage) {}
+    async fn on_user_unban(&self, _unban_message: &UnbanMessage) {}
+
     async fn on_poll_add(&self, _poll: &Poll) {}
     async fn on_poll_update(&self, _poll: &Poll) {}
     async fn on_poll_remove(&self, _poll: &Poll) {}
+
     async fn on_stream_start(&self, _stream_details: StreamDetails) {}
     async fn on_stream_end(&self) {}
 }
@@ -125,6 +135,9 @@ impl Client {
                                             Message::MembershipMilestone(ref milestone) => self.handler.on_membership_milestone(milestone).await,
                                             Message::MembershipGift(ref gift) => self.handler.on_membership_gift(gift).await,
                                             Message::MembershipClaim(ref claim) => self.handler.on_membership_claim(claim).await,
+                                            Message::TimeoutMessage(ref timeout) => self.handler.on_user_timeout(timeout).await,
+                                            Message::BanMessage(ref ban) => self.handler.on_user_ban(ban).await,
+                                            Message::UnbanMessage(ref unban) => self.handler.on_user_unban(unban).await,
                                             _ => println!("[TODO] No supported handler for this type yet: {item:#?}"),
                                         }
                                         self.message_cache.insert(item);
