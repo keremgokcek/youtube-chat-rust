@@ -3,7 +3,7 @@ use crate::types::StreamDetails;
 use crate::types::event::Event;
 use crate::types::message::{
     BanMessage, MembershipClaim, MembershipGift, MembershipMilestone, Message, NewMembership, SuperChat, SuperSticker, TextMessage, TimeoutMessage,
-    UnbanMessage,
+    UnbanMessage, UpgradeMembership,
 };
 use crate::types::poll::Poll;
 use async_trait::async_trait;
@@ -19,6 +19,7 @@ pub trait EventHandler: Send + Sync {
     async fn on_superchat(&self, _superchat: &SuperChat) {}
     async fn on_supersticker(&self, _supersticker: &SuperSticker) {}
     async fn on_membership(&self, _membership: &NewMembership) {}
+    async fn on_membership_upgrade(&self, _membership: &UpgradeMembership) {}
     async fn on_membership_milestone(&self, _membership_milestone: &MembershipMilestone) {}
     async fn on_membership_gift(&self, _membership_gift: &MembershipGift) {}
     async fn on_membership_claim(&self, _membership_claim: &MembershipClaim) {}
@@ -132,6 +133,7 @@ impl Client {
                                             Message::SuperChat(ref superchat) => self.handler.on_superchat(superchat).await,
                                             Message::SuperSticker(ref supersticker) => self.handler.on_supersticker(supersticker).await,
                                             Message::NewMembership(ref membership) => self.handler.on_membership(membership).await,
+                                            Message::UpgradeMembership(ref membership) => self.handler.on_membership_upgrade(membership).await,
                                             Message::MembershipMilestone(ref milestone) => self.handler.on_membership_milestone(milestone).await,
                                             Message::MembershipGift(ref gift) => self.handler.on_membership_gift(gift).await,
                                             Message::MembershipClaim(ref claim) => self.handler.on_membership_claim(claim).await,

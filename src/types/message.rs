@@ -10,6 +10,7 @@ use url::Url;
 pub enum Message {
     TextMessage(TextMessage),
     NewMembership(NewMembership),
+    UpgradeMembership(UpgradeMembership),
     MembershipMilestone(MembershipMilestone),
     SuperChat(SuperChat),
     SuperSticker(SuperSticker),
@@ -104,13 +105,26 @@ impl TryFrom<&MessageItem> for Message {
                             unreachable!("Tier not detected on new membership")
                         };
                         let title: Vec<_> = runs.runs.iter().map(MessagePart::from).collect();
-                        Message::NewMembership(NewMembership {
-                            author,
-                            timestamp,
-                            id,
-                            tier,
-                            title,
-                        })
+                        if let Some(a) = runs.runs.get(0)
+                            && let Run::Text(b) = a
+                            && b.text.contains("Upgraded")
+                        {
+                            Message::UpgradeMembership(UpgradeMembership {
+                                author,
+                                timestamp,
+                                id,
+                                tier,
+                                title,
+                            })
+                        } else {
+                            Message::NewMembership(NewMembership {
+                                author,
+                                timestamp,
+                                id,
+                                tier,
+                                title,
+                            })
+                        }
                     }
                 }
             }
@@ -351,6 +365,17 @@ pub struct Engagement {
 
 #[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
 pub struct NewMembership {
+    pub author: Author,
+    pub timestamp: u64,
+    pub id: String,
+    /// Membership tier
+    pub tier: String,
+    /// Welcome message sent by YouTube (Welcome to Destekçi!)
+    pub title: Vec<MessagePart>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, Deserialize, PartialEq, Serialize)]
+pub struct UpgradeMembership {
     pub author: Author,
     pub timestamp: u64,
     pub id: String,
