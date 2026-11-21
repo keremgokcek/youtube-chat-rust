@@ -283,7 +283,10 @@ impl TryFrom<&MessageItem> for Message {
                         timestamp,
                         target_username: target.into(),
                         moderator_username: mod_name.into(),
-                        timeout_secs: timeout.parse().unwrap(),
+                        timeout_secs: match timeout.strip_suffix("K") {
+                            Some(t) => (t.parse::<f32>().unwrap() * 1000f32) as u32,
+                            None => timeout.parse().unwrap(),
+                        },
                     }),
                     // Case: Unban or Ban (at least 3 elements, looking at index 0, 1, and 2)
                     [MessagePart::Text(target), MessagePart::Text(action), MessagePart::Text(mod_name), ..] => {
